@@ -45,3 +45,62 @@ Gradle은 라이브러리를 설치할 때 의존 관계가 있는 라이브러�
     - mockito (mock 라이브러리)
     - assertj (테스트 코드 편하게 작성하게 도와주는 라이브러리)
     - spring-test (스프링 통합 테스트)가 들어있다.
+
+# **3. View 환경설정**
+src/main/resources/static 폴더에 index.html 파일을 만들고,<br>
+위에서 말한 .java 파일을 실행하면 '/'경로로 index.html 파일이 렌더링된다.
+
+서버와 브라우저가 데이터를 주고 받으려면 다음처럼 하면 된다.<br>
+src/main/java/(만들어진폴더) 에 controller 패키지를 만들고, controller 클래스를 만든다.<br>
+
+![](./images/03-01.png)
+
+
+사진에 HelloController 클래스는 다음처럼 쓰고
+
+```java
+package hello.hellospring.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+
+@Controller
+public class HelloController {
+
+    @GetMapping("hello")
+    public String hello(Model model) {
+        model.addAttribute("data", "hello!!");
+        return "hello";
+    }
+}
+
+```
+
+src/main/resources/templates/ 폴더에 hello.html을 만들고 다음처럼 적으면 된다.
+
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Hello</title>
+</head>
+<body>
+<p th:text="'안녕하세요.' + ${data}" >안녕하세요. 손님</p>
+</body>
+</html>
+```
+
+HelloController 클래스에 `@GetMapping("hello")`는 주소에 /hello 경로를 의미하고 `Model model`은 스프링에서 주는 모델을 받는다.<br>
+`model.addAttribute("data", "hello!!");`는 `data`라는 키에 `hello!!`라는 값을 할당한거고<br>
+`return "hello";`는 templates 폴더에 hello.html을 렌더링하라는 의미이다.
+
+hello.html에 html태그에 xmlns:th는 thymeleaf 템플릿 엔진을 선언하는 코드고<br>
+p태그에 th:text에 ${data}는 위에 HelloController에 `model.addAttribute("data", "hello!!");` 에 `data` 키에 해당하는 값, `hello!!`를 의미한다.
+
+프로젝트를 실행하고 /hello 경로로 이동해보면
+
+![](./images/03-02.png)
+
+hello.html에 p태그에 th:text 속성이 p태그로 감싸져 나오는 것을 확인해볼 수 있다.
