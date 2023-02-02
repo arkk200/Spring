@@ -186,10 +186,73 @@ name 파라미터 값이 ${name}에 잘 들어간 것을 확인할 수 있다.
 Spring Boot에서 MVC와 템플릿 엔진 처리 방식은 이렇다.
 
 1. 내장 톰캣 서버가 요청을 받고 스프링한테 넘긴다.
-2. 스프링은 컨트롤러를 살펴보는데 해당 주소가 맵핑 되어 있으니 해당 메소드를 실행한다.
+2. 스프링은 컨트롤러를 살펴보는데 해당 주소가 맵핑 되어 있는 메소드가 있으니 실행한다.
 3. model에 name이라는 키로 값을 할당해주고 hello-template를 스프링한테 보내준다.
 4. 스프링이 viewResolver를 동작시킨다. viewResolver는 뷰를 찾아주고 템플릿 엔진을 연결시켜주는 역할이다.
 5. viewResolver는 templates/ 에 html 파일을 찾고 템플릿 엔진한테 넘긴다.
 6. 템플릿은 렌더링을 해서 변환된 파일을 클라이언트한테 보내준다.
 
 정적 컨텐츠는 6단계에 변환하는 단계가 없다.
+
+## **5-3. API**
+
+API는 데이터만 보내주기에 다음 처럼 메소드를 짜면 된다.
+```java
+@GetMapping("hello-string")
+@ResponseBody
+public String helloString(@RequestParam("name") String name) {
+    return "hello " + name;
+}
+```
+
+여기서 @ResponseBody는 메소드가 return하는 값이 뷰 파일 이름이 아닌 http에 Body부에 들어가는 값을 의미한다.
+
+Spring Boot를 실행하고 name 파라미터와 함께 /hello-string 주소를 입력하면
+![](./images/05-02.png)
+
+문자열이 잘나오는 것을 볼 수 있고 우클릭, 페이지 검사를 눌러보면
+![](./images/05-03.png)
+
+진짜로 문자열만 있는 것을 확인할 수 있다.
+
+JSON을 보내줄 땐 자바에 객체를 보내주면 되는데<br>
+아래 메소드를 추가로 입력해준다.
+
+```java
+@GetMapping("hello-api")
+@ResponseBody
+public Hello helloApi(@RequestParam("name") String name) {
+    Hello hello = new Hello();
+    hello.setName(name);
+    return hello;
+}
+
+static class Hello {
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+```
+
+helloApi 메소드는 Hello라는 객체를 반환하는데 얘도 마찬가지로 name 파라미터와 함께 /hello-api 주소로 이동하면
+![](./images/05-04.png)
+
+잘 받아와지는 것을 볼 수 있다.
+
+Spring Boot에서 API 동작 방식은 이렇다.
+
+1. 내장 톰캣 서버가 요청을 받고 스프링한테 넘긴다.
+2. 스프링은 컨트롤러를 살펴보는데 해당 주소가 맵핑 되어 있는 메소드가 있으니 실행한다.
+3. 그런데 ResponseBody라는 어노테이션이 붙어있으니 스프링은 viewResolver는 동작하지 않고 httpMessageConverter가 동작한다.
+4. 만약 메소드에 return 값이 단순 문자라면 StringConverter가 동작하고 객체면 JsonConverter가 기본으로 동작한다.
+5. 요청한 클라이언트한테 보내준다.
+
+기본 문자처리는 StringHttpMessageConverter가 하고<br>
+기본 객체처리는 MappingJackson2HttpMessageConverter가 한다.<br>
+(Jackson은 객체를 JSON으로 바꿔주는 라이브러리다.)
