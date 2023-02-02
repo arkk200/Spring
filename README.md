@@ -104,3 +104,16 @@ p태그에 th:text에 ${data}는 위에 HelloController에 `model.addAttribute("
 ![](./images/03-02.png)
 
 hello.html에 p태그에 th:text 속성이 p태그로 감싸져 나오는 것을 확인해볼 수 있다.
+
+# **4. 빌드하고 실행하기**
+
+터미널을 열고 spring initialzr에서 다운받고 코드를 짰던 폴더로 이동한다.<br>
+mac은 `./gradlew build`, windows는 `./gradlew.bat build`를 입력하면 build 폴더가 만들어진다.
+
+build/libs/ 폴더로 이동하고 ~~~~SNAPSHOT.jar 파일이 있는지 확인한 후
+```
+java -jar ~~~~~SNAPSHOT.jar
+```
+을 입력하면 스프링부트가 실행된다.
+
+build 폴더를 삭제할 때는 gradlew, gradlew.bat이 있는 폴더에서 `./gradlew clean` 또는 `./gradlew.bat clean`을 입력하면 된다.
