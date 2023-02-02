@@ -141,3 +141,55 @@ Spring Boot에서 정적 컨텐츠가 보이는 방식은 이렇다.
 2. 스프링이 먼저 컨트롤러 쪽에 `hello-static.html`이 있는지 찾는다. (컨트롤러가 우선순위를 가짐)
 3. `hello-static.html`로 맵핑이 된 컨트롤러가 없으니 resources/static/ 폴더에 hello-static.html을 찾는다.
 4. 있으니 클라이언트 쪽으로 보내준다.
+
+## **5-2. MVC와 템플릿 엔진**
+
+MVC: Model, View, Controller
+
+과거에는 Controller와 View라는게 따로 분리되어 있지 않았고 View에 모든 걸 다했다. JSP가 그렇다.<br>
+이 방식을 모델1 방식이라고 한다.
+
+url에 파라미터를 받아오는 방식은 다음처럼 하면 된다.
+
+먼저 위에서 만들었던 HelloController 클래스에 `hello-mvc`를 Get으로 맵핑해준다.
+```java
+@GetMapping("hello-mvc")
+public String helloMvc(@RequestParam("name") String name, Model model) {
+    model.addAttribute("name", name);
+    return "hello-template";
+}
+```
+helloMvc 메소드에 `@RequestParam("name") String name` 파라미터가 있는데 url에 name이라는 키의 값은 이 파라미터가 받아온다.<br>
+그 값을 model에 name이라는 키로 할당하고 hello-template이라는 파일을 렌더링해준다.
+
+hello-template이라는 파일이 있어야 렌더링 되므로 resources/templates/ 폴더에 `hello-template.html` 파일을 만들어준다.
+
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Hello</title>
+</head>
+<body>
+<p th:text="'hello. ' + ${name}" >hello!. empty</p>
+</body>
+</html>
+```
+
+이제 Spring Boot를 실행하고 name파라미터와 함께 주소를 입력하면
+
+![](./images/05-01.png)
+
+name 파라미터 값이 ${name}에 잘 들어간 것을 확인할 수 있다.
+
+Spring Boot에서 MVC와 템플릿 엔진 처리 방식은 이렇다.
+
+1. 내장 톰캣 서버가 요청을 받고 스프링한테 넘긴다.
+2. 스프링은 컨트롤러를 살펴보는데 해당 주소가 맵핑 되어 있으니 해당 메소드를 실행한다.
+3. model에 name이라는 키로 값을 할당해주고 hello-template를 스프링한테 보내준다.
+4. 스프링이 viewResolver를 동작시킨다. viewResolver는 뷰를 찾아주고 템플릿 엔진을 연결시켜주는 역할이다.
+5. viewResolver는 templates/ 에 html 파일을 찾고 템플릿 엔진한테 넘긴다.
+6. 템플릿은 렌더링을 해서 변환된 파일을 클라이언트한테 보내준다.
+
+정적 컨텐츠는 6단계에 변환하는 단계가 없다.
