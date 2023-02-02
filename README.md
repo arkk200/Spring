@@ -117,3 +117,27 @@ java -jar ~~~~~SNAPSHOT.jar
 을 입력하면 스프링부트가 실행된다.
 
 build 폴더를 삭제할 때는 gradlew, gradlew.bat이 있는 폴더에서 `./gradlew clean` 또는 `./gradlew.bat clean`을 입력하면 된다.
+
+# **5. 웹 개발**
+웹 개발에는 크게 3가지로
+- 정적 컨텐츠
+- MVC와 템플릿 엔진
+- API
+
+가 있다.
+
+정적 컨텐츠 방식은 서버에서 하는 것 없이 클라이언트한테 그대로 보내주는 것이고<br>
+MVC와 템플릿 엔진 방식은 JSP, PHP 같은 템플릿 엔진으로 서버에서 동적으로 바꿔서 클라이언트한테 보내주는 방식이다.<br>
+API는 데이터를 제공받기 위한 규격을 의미하는데 데이터 구조 포맷으로 데이터를 클라이언트한테 보내주는 방식이다.
+
+## **5-1. 정적 컨텐츠**
+
+Spring Boot에서 src/main/resources/static/ 폴더에서 정적 컨텐츠를 생성할 수 있다.<br>
+만약 `hello-static.html`을 만들고 프로젝트를 실행한 뒤, /hello-static.html 주소를 입력하면 `hello-static.html` 파일이 보인다.
+
+Spring Boot에서 정적 컨텐츠가 보이는 방식은 이렇다.
+
+1. 내장 톰캣 서버가 요청을 받고 스프링한테 넘긴다.
+2. 스프링이 먼저 컨트롤러 쪽에 `hello-static.html`이 있는지 찾는다. (컨트롤러가 우선순위를 가짐)
+3. `hello-static.html`로 맵핑이 된 컨트롤러가 없으니 resources/static/ 폴더에 hello-static.html을 찾는다.
+4. 있으니 클라이언트 쪽으로 보내준다.
