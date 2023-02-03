@@ -267,7 +267,7 @@ Spring Boot에서 API 동작 방식은 이렇다.
 
 **"일반적인 웹 어플리케이션 계층 구조"**
 
-![](./images/05-05.png)
+![](./images/06-01.png)
 
 - 컨트롤러: MVC에 컨트롤러이다.
 - 도메인: 비즈니스 도메인 객체로, 회원, 쿠폰 등 DB에 저장되고 관리되는 도메인 객체이다.
@@ -276,7 +276,93 @@ Spring Boot에서 API 동작 방식은 이렇다.
 
 **"클래스 의존관계"**
 
-![](./images/05-06.png)
+![](./images/06-02.png)
 
 메모리 구현체는 개발을 해야하는 상황에서 DB가 정해지지 않았을 때 메모리를 DB대신 사용하는 것이다. <br>
 나중에 DB로 교체하기 위해 인터페이스가 필요하다.
+
+먼저 회원서비스를 구현하기 위해 src/main/java/(만들어진폴더)/ 에 domain 패키지를 만들고 그 안에 Memeber 클래스를 만든다. 그리고 Member 클래스는 다음처럼 코드를 짠다.
+
+```java
+public class Member {
+
+    private Long id;
+    private String name;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+
+```
+얘는 Member라는 DB에 관리되는 객체이므로 도메인 패키지에 저장하는 것이다.
+
+회원리포지토리(인터페이스)는 src/main/java/(만들어진폴더)/ 에 repository 패키지를 만들고 MemberRepository 인터페이스를 만든다. 인터페이스 코드는 다움처럼 짠다.
+
+```java
+package hello.hellospring.repository;
+
+import hello.hellospring.domain.Member;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface MemberRepository {
+    Member save(Member member);
+    Optional<Member> findById(Long id);
+    Optional<Member> findByName(String name);
+    List<Member> findAll();
+}
+```
+Optional은 Null 값으로 인해 생기는 예외를 피하기 위해 사용한다.
+Optional에 감싸진 값이 Null이더라도 예외가 발생하지 않는다.
+
+메모리 구현체를 만들기 위해 만들었던 repository 패키지 않에 MemoryMemberRepository 클래스를 만든다. 코드는 다음처럼 짠다.
+
+```java
+public class MemoryMemberRepository implements MemberRepository {
+
+    private static Map<Long, Member> store = new HashMap<>();
+    private static long sequence = 0L;
+
+    @Override
+    public Member save(Member member) {
+        member.setId(++sequence);
+        store.put(member.getId(), member);
+        return member;
+    }
+
+    @Override
+    public Optional<Member> findById(Long id) {
+        return Optional.ofNullable(store.get(id));
+    }
+
+    @Override
+    public Optional<Member> findByName(String name) {
+        return store.values().stream().filter(member -> member.getName().equals(name)).findAny();
+    }
+
+    @Override
+    public List<Member> findAll() {
+        return new ArrayList<>(store.values());
+    }
+    
+    public void clearStore() {
+        store.clear();
+    }
+}
+```
+
+`store.clear()`는 store를 비우는 구문이다.
