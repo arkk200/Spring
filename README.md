@@ -367,7 +367,7 @@ public class MemoryMemberRepository implements MemberRepository {
 
 `store.clear()`는 store를 비우는 구문이다.
 
-# **7. 회원 리포지토리 테스트 케이스 작성**
+# **6-2. 회원 리포지토리 테스트 케이스 작성**
 
 테스트 케이스는 src/test/java/(만들어진폴더)/ 에 패키지, 클래스를 만들어서 할 수 있다.
 
@@ -456,3 +456,60 @@ assertThat은 `org.junit.jupiter.api.Assertions.*`에 있는 메소드이다.
 findByName과 findAll 메소드가 테스트하는 Member 객체들의 이름이 서로 같은게 존재하기 때문이다.
 
 클래스 이름 옆에 실행 버튼을 눌러 모든 테스트 케이스들을 실행할 수 있다.
+
+# **6-3. 회원 서비스 개발**
+
+[6-1](#6-1-비즈니스-요구사항-정리)에 웹 어플리케이션 계층 구조를 살펴보면 마지막으로 서비스를 만들어야하는게 보인다.<br>
+서비스는 리포지토리와 비슷하게 DB에 데이터를 다루는 건 똑같다.<br>
+하지만 리포지토리는 DB에 데이터를 생성, 수정, 삭제, 조회같은 직접적으로 DB에 데이터를 다룬다면<br>
+서비스는 기획자나 다른 협업하는 사람도 알 수 있는 메소드 이름으로 리포지토리보다 더 비즈니스 적인 로직을 사용한다.
+
+서비스도 리포지토리, 도메인 패키지와 같은 폴더 위치인 src/main/java/(만들어진폴더)/ 에 service라는 패키지를 만들고 MemberService라는 클래스를 만든다.
+
+MemberService 클래스 코드는 다음처럼 짜면 된다.
+
+```java
+public class MemberService {
+    private final MemberRepository memberRepository = new MemoryMemberRepository();
+
+    /**
+     * 회원 가입
+     */
+    public Long join(Member member) {
+        // 같은 이름이 있는 중복 회원 X
+        validateDuplicateMember(member); // 중복 회원 검증
+
+        memberRepository.save(member);
+        return member.getId();
+    }
+
+    private void validateDuplicateMember(Member member) {
+        memberRepository.findByName(member.getName())
+                .ifPresent(m -> { // null이 아닌 어떤 값이 있으면
+            throw new IllegalStateException("이미 존재하는 회원입니다.");
+        });
+    }
+
+    /**
+     * 전체 회원 조회
+     */
+    public List<Member> findMembers() {
+        return memberRepository.findAll();
+    }
+
+    public Optional<Member> findOne(Long memberId){
+        return memberRepository.findById(memberId);
+    }
+}
+```
+
+join 메소드는 validateDuplicateMember 메소드를 통해 먼저 중복되는 이름이 있는지 확인한다.
+
+validateDuplicateMember 메소드에 .ifPresent는 Optional에 붙는 메소드인데<br>
+만약 Optional에 감싸진 값이 null이 아닌 값이라면 인자에 람다를 실행한다.
+
+여기서 이름이 중복되는 멤버가 있는지 확인하고 만약 있다면 IllegalState 예외를 던진다.<br>
+만약 중복되는 멤버가 없다면 memberrepository에 멤버를 저장하고 ID를 반환한다.
+
+findMembers는 memberRepository에 모든 멤버를 반환하고<br>
+findOne은 memberId로 멤버 한명을 찾는다.
