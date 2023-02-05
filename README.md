@@ -513,3 +513,94 @@ validateDuplicateMember 메소드에 .ifPresent는 Optional에 붙는 메소드�
 
 findMembers는 memberRepository에 모든 멤버를 반환하고<br>
 findOne은 memberId로 멤버 한명을 찾는다.
+
+# **6-4. 회원 서비스 개발**
+
+MemoryMemberRepository 클래스처럼 MemberService 클래도 test 폴더에 테스트하는 클래스를 만들어주면 되는데 테스트하고자 하는 클래스에 ⌘ ⇧ T 를 입력하면 test 폴더에 테스트 케이스 구조를 바로 만들 수 있다.
+
+추가로 프로덕션 코드에 메소드는 영어로 써야하지만 테스트 케이스에 메소드는 한글로 써도 상관이 없다.<br>
+테스트 코드이기 때문에 빌드할 때 포함이 안되기도 하고 좀 더 직관적일 수 있기 때문이다.<br>
+실제로도 협업할 때 한글로 많이 쓰기도 한다고 한다.
+
+테스트 케이스 코드는 다음과 같다.
+```java
+class MemberServiceTest {
+    MemberService memberService;
+    MemoryMemberRepository memberRepository;
+
+    @BeforeEach
+    public void beforeEach() {
+        memberRepository = new MemoryMemberRepository();
+        memberService = new MemberService(memberRepository);
+    }
+
+    @AfterEach
+    public void afterEach() {
+        memberRepository.clearStore();
+    }
+
+    @Test
+    void 회원가입() {
+        /* 만약 테스트 코드가 매우 길땐 아래 패턴으로 짜면 알기 쉽다. */
+
+        // given: 무언가 데이터가 주어졌고
+        Member member = new Member();
+        member.setName("spring");
+
+        // when: 이걸로 실행했는데
+        Long saveId = memberService.join(member);
+
+        // then: 결과가 이게 나와야 해
+        Member findMember = memberService.findOne(saveId).get();
+        assertThat(findMember.getName()).isEqualTo(member.getName());
+    }
+
+    @Test
+    public void 중복_회원_예외() {
+        // given
+        Member member1 = new Member();
+        member1.setName("spring");
+
+        Member member2 = new Member();
+        member2.setName("spring");
+        
+        // when
+        memberService.join(member1);
+
+        // then
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> memberService.join(member2));
+        assertThat(e.getMessage()).isEqualTo("이미 존재하는 회원입니다.");
+    }
+
+    @Test
+    void findMembers() {
+    }
+
+    @Test
+    void findOne() {
+    }
+}
+```
+여기서 @BeforeEach는 @AfterEach와 반대로 각각의 테스트 케이스 메소드가 실행되기 전에 메소드를 실행시키는 어노테이션이다.<br>
+@BeforeEach에 메소드를 보면 MemberService에 MemoryMemberRepository 객체를 넘기고 있는데 이에 따라 MemberService도 코드를 조금 수정해야한다,
+
+MemberService에 MemberRepository 객체를 선언했던 코드를 다음처럼 변경한다.
+```java
+private final MemberRepository memberRepository;
+
+public MemberService(MemberRepository memberRepository) {
+    this.memberRepository = memberRepository;
+}
+```
+MemberService 생성자가 외부에서 객체를 받고 그 객체를 MemberRepository의 객체인 memberRepository에 대입하고 있다.<br>
+이런 방식을 DI(Dependency Injection)이라고 부흔다.
+
+다시 MemberServiceTest 클래스로 돌아와서 각각의 테스트 케이스 메소드들을 살펴보면<br>
+given, when, then이라는 주석이 보이는데 테스트 케이스를 작성할 때 이 주석과 함께 이런식으로 작성하고 다른 사람이 코드를 봤을 때 이해하기도 쉽고 좀 더 깔금해진다.<br>
+의미는 주석에 나와있는대로다.
+
+중복_회원_예외 메소드는 중복된 이름의 회원이 가입을 했을 때 IllegalStateException 에러가 나오는지 테스트하는 메소드다.
+
+이 때 JUnit에 assertThrows를 쓰면 에러 테스트를 좀 더 수월하게 할 수 있다.<br>
+첫번째 인자로 기대하는 에러, 두번째 인자로 에러가 나오는 실행문을 람다로 작성한다.<br>
+코드에서 보이듯이 에러 객체를 반환하고 에러 메세지도 assertThat 구문을 통해 테스트하는 것을 볼 수 있다.
