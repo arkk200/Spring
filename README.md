@@ -367,7 +367,7 @@ public class MemoryMemberRepository implements MemberRepository {
 
 `store.clear()`는 store를 비우는 구문이다.
 
-# **6-2. 회원 리포지토리 테스트 케이스 작성**
+## **6-2. 회원 리포지토리 테스트 케이스 작성**
 
 테스트 케이스는 src/test/java/(만들어진폴더)/ 에 패키지, 클래스를 만들어서 할 수 있다.
 
@@ -457,9 +457,9 @@ findByName과 findAll 메소드가 테스트하는 Member 객체들의 이름이
 
 클래스 이름 옆에 실행 버튼을 눌러 모든 테스트 케이스들을 실행할 수 있다.
 
-# **6-3. 회원 서비스 개발**
+## **6-3. 회원 서비스 개발**
 
-[6-1](#6-1-비즈니스-요구사항-정리)에 웹 어플리케이션 계층 구조를 살펴보면 마지막으로 서비스를 만들어야하는게 보인다.<br>
+[6-1](#6-1-비즈니스-요구사항-정리)에 웹 어플리케이션 계층 구조를 살펴보면 마지막으로 서비스를 만들어야하는게 보인다.<br>1
 서비스는 리포지토리와 비슷하게 DB에 데이터를 다루는 건 똑같다.<br>
 하지만 리포지토리는 DB에 데이터를 생성, 수정, 삭제, 조회같은 직접적으로 DB에 데이터를 다룬다면<br>
 서비스는 기획자나 다른 협업하는 사람도 알 수 있는 메소드 이름으로 리포지토리보다 더 비즈니스 적인 로직을 사용한다.
@@ -514,7 +514,7 @@ validateDuplicateMember 메소드에 .ifPresent는 Optional에 붙는 메소드�
 findMembers는 memberRepository에 모든 멤버를 반환하고<br>
 findOne은 memberId로 멤버 한명을 찾는다.
 
-# **6-4. 회원 서비스 개발**
+## **6-4. 회원 서비스 개발**
 
 MemoryMemberRepository 클래스처럼 MemberService 클래도 test 폴더에 테스트하는 클래스를 만들어주면 되는데 테스트하고자 하는 클래스에 ⌘ ⇧ T 를 입력하면 test 폴더에 테스트 케이스 구조를 바로 만들 수 있다.
 
@@ -604,3 +604,69 @@ given, when, then이라는 주석이 보이는데 테스트 케이스를 작성�
 이 때 JUnit에 assertThrows를 쓰면 에러 테스트를 좀 더 수월하게 할 수 있다.<br>
 첫번째 인자로 기대하는 에러, 두번째 인자로 에러가 나오는 실행문을 람다로 작성한다.<br>
 코드에서 보이듯이 에러 객체를 반환하고 에러 메세지도 assertThat 구문을 통해 테스트하는 것을 볼 수 있다.
+
+# **7. 스프링 빈과 의존관계**
+## **7-1. 컴포넌트 스캔과 자동 의존관계 설정**
+
+본격적으로 테스트가 끝났으니 위에서 만든 Member라는 도메인 객체와 MemberService, MemoryMemberRepository를 사용해볼 차례다.<br>
+그전에 [6-1](#6-1-비즈니스-요구사항-정리)에서 보이듯이 마지막으로 컨트롤러를 만들어야한다.
+
+기존에 만들었던 HelloController 클래스와 비슷하게 controller/ 폴더에 MemberController 클래스를 작성한다.<br>
+```java
+@Controller
+public class MemberController {
+    private final MemberService memberService;
+
+    @Autowired
+    public MemberController(MemberService memberService) {
+        this.memberService = memberService;
+    }
+}
+```
+@Autowired라는 어노테이션이 보이는데 이 클래스 입장에서 @Autowired는<br>
+스프링이 MemberController 클래스를 생성할 때 MemberController 생성자를 실행하고 인자에 객체는 **스프링 컨테이너에서에서 관리하는 객체를** 가지고 오는 역할이다.
+
+이 말은 위에서 만들었던 서비스 클래스를 스프링 컨테이너가 관리하게 해줘야 한다는 말인데<br>
+그러기 위해선 서비스 클래스도 컨트롤러와 비슷하게 클래스 위에 @Service라는 어노테이션을 달아줘야한다.
+```java
+// MemberService 클래스
+@Service
+public class MemberService {
+    ...
+}
+```
+이때 컨트롤러나 서비스 등의 어노테이션을 이용하여 스프링 컨테이너가 관리하게 만드는 방식을 **'컴포넌트 스캔'** 방식이라고 하고, 스프링 컨테이너가 관리하는 이런 자바 객체들을 **'스프링 빈'** 이라고 한다.
+
+서비스에서 레포지토리 객체를 가지고오는 메서드도 아래처럼 수정하고
+```java
+@Service
+public class MemberService {
+    ...
+    @Autowired
+    public MemberService(MemberRepository memberRepository) {
+        this.memberRepository = memberRepository;
+    }
+    ...
+}
+```
+위에서 만들었던 레포지토리 클래스도 아래처럼 수정한다.
+```java
+// MemoryMemberRepository 클래스
+@Repository
+public class MemoryMemberRepository implements MemberRepository {
+    ...
+}
+```
+
+스프링 빈을 등록하는 방법에는 2가지가 있다.
+그 첫번째가 위에서 했던 컴포넌트 스캔과 자동 의존관계 설정 방식이다.
+
+이 방식은 @Component 어노테이션을 이용하여 스프링 빈을 만드는 방식이다.<br>
+@Controller, @Service, @Repository도 해당 파일에 들어가보면 @Component 어노테이션이 붙어있다.
+
+컴포넌트 스캔의 대상은 src/main/java/(만들어진 폴더)/ 바로 안래 애플리케이션 클래스가 있는 패키지 내부까지다.<br>
+때문에 main/java/ 폴더에 어떤 패키지와 클래스를 만들고 어노테이션으로 스프링 빈을 만들려고 해도 만들어지지 않는다.
+
+그리고 스프링은 기본으로 스프링 빈을 싱글톤으로 등록한다.<br>
+즉, 유일하게 하나의 인스턴스만 등록하고, 이 인스턴스 하나를 공유한다.<br>
+싱글톤이 아니게 설정할 수 있지만 보통 싱글톤으로 사용한다.
