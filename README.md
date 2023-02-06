@@ -637,7 +637,7 @@ public class MemberService {
 ```
 이때 컨트롤러나 서비스 등의 어노테이션을 이용하여 스프링 컨테이너가 관리하게 만드는 방식을 **'컴포넌트 스캔'** 방식이라고 하고, 스프링 컨테이너가 관리하는 이런 자바 객체들을 **'스프링 빈'** 이라고 한다.
 
-서비스에서 레포지토리 객체를 가지고오는 메서드도 아래처럼 수정하고
+서비스에서 리포지토리 객체를 가지고오는 메서드도 아래처럼 수정하고
 ```java
 @Service
 public class MemberService {
@@ -649,7 +649,7 @@ public class MemberService {
     ...
 }
 ```
-위에서 만들었던 레포지토리 클래스도 아래처럼 수정한다.
+위에서 만들었던 리포지토리 클래스도 아래처럼 수정한다.
 ```java
 // MemoryMemberRepository 클래스
 @Repository
@@ -670,3 +670,97 @@ public class MemoryMemberRepository implements MemberRepository {
 그리고 스프링은 기본으로 스프링 빈을 싱글톤으로 등록한다.<br>
 즉, 유일하게 하나의 인스턴스만 등록하고, 이 인스턴스 하나를 공유한다.<br>
 싱글톤이 아니게 설정할 수 있지만 보통 싱글톤으로 사용한다.
+
+## **7-2. 자바 코드로 직접 스프링 빈 등록하기**
+
+
+자바 코드로 직접 스프링 빈을 등록하기 위해서 먼저 컴포넌트 스캔 방식을 지워야한다.
+
+MemberService와 MemoryMemberRepository 클래스에서 클래스명 위엥 @Service, @Repository 어노테이션을 지우고, MemberService에 @Autowired를 지운다.
+
+src/main/java/(만들어진 폴더)/ 에 SpringConfig 라는 클래스를 하나 만들고<br>
+아래처럼 코드를 짠다.
+```java
+@Configuration
+public class SpringConfig {
+
+    @Bean
+    public MemberService memberService() {
+        return new MemberService(memberRepository());
+    }
+
+    @Bean
+    public MemberRepository memberRepository() {
+        return new MemoryMemberRepository();
+    }
+}
+```
+`@Configuration`을 단 클래스는 빈 설정을 담당하는 클래스가 된다.<br>
+그리고 `@Bean`을 단 메소드는 스프링이 호출해서 스프링 빈에 등록해준다.
+
+MemberService 객체를 반환하는 메소드에 MemberSerice 생성자는 인자로 MemberRepository 객체를 하나 받기 때문에<br>
+memberRepository 메소드를 안에서 호출해 객체를 받는다.
+
+위에서 DI 방식을 보았는데 이 DI에는 3가지 방법이 있다.
+- 필드 주입(Field Injection)
+    ```java
+    // MemberController
+    @Controller
+    public class MemberController {
+
+        @Autowired
+        private MemberService memberService;
+    }
+    ```
+    필드에 바로 @Autowired 어노테이션을 다는 방식이다.<br>
+    필드 주입 방식은 스프링 컨테이너 외에 외부에서 주입할 수 있는 방법도 없고 final로 선언할 수도 없기에 좋은 방법은 아니다.
+- setter 주입
+    ```java
+    public class MemberController {
+
+        private MemberService memberService;
+
+        @Autowired
+        public void setMemberService(MemberService memberService) {
+            this.memberService = memberService;
+        }
+    }
+    ```
+    생성자가 생성된 후 @Autowired에 의해 호출 되어 주입되는 방식이다.<br>
+    단점은 memberService를 세팅하는 메소드에 public이 붙어있어야 해서<br>
+    한번만 호출돼도 되는 메서드가 굳이 노출된다는 것이다.
+- 생성자 주입
+    ```java
+    // MemberController
+    @Controller
+    public class MemberController {
+        private final MemberService memberService;
+
+        @Autowired
+        public MemberController(MemberService memberService) {
+            this.memberService = memberService;
+        }
+    }
+    ```
+    기존에 위에서 했던 방식이다.<br>
+    생성자 위에 @Autuwired 어노테이션을 달아서 객체를 주입하는 방식이다.<br>
+    이 방법을 쓰는걸 권장한다.
+
+주로 정형화된 컨트롤러, 서비스, 리포지토리는 컴포넌트 스캔, 정형화되지 않거나, 상황에 따라 구현 클래스를 변경해야할 땐 설정을 통해 스프링 빈으로 등록한다.
+
+위에서 임시로 만든 MemoryMemberRepository를 교체할 때 설정을 통해 스프링 빈으로 등록한다면 코드에 손 안되고 교체할 수 있다.
+
+그리고 @Autowired는 스프링 컨테이너가 관리하는 객체에서만 동작한다.
+```java
+// MemberController
+
+public class MemberController {
+    private final MemberService memberService;
+
+    @Autowired
+    public MemberController(MemberService memberService) {
+        this.memberService = memberService;
+    }
+}
+```
+이 클래스 같은 경우, 컴포넌트 스캔이나 따로 설정으로 스프링 빈으로 등록하지도 않았기에 @Autowired는 무용지물이 된다.
