@@ -764,3 +764,81 @@ public class MemberController {
 }
 ```
 이 클래스 같은 경우, 컴포넌트 스캔이나 따로 설정으로 스프링 빈으로 등록하지도 않았기에 @Autowired는 무용지물이 된다.
+
+# **8. 회원 관리 예제, 웹 MVC 개발**
+
+## **8-1. 회원 등록**
+회원 가입 기능을 만들기 위해 MemberController 클래스에
+```java
+// MemberController
+@GetMapping("/members/new")
+public String createForm() {
+    return "members/createMemberForm";
+}
+
+@PostMapping("/members/new")
+public String create(MemberForm form) {
+    Member member = new Member();
+    member.setName(form.getName());
+
+    memberService.join(member);
+
+    return "redirect:/";
+}
+```
+코드를 추가하고 resources/templates/ 아래에 members 폴더와 createMemberForm html파일을 만들었다.<br>
+createMemberForm.html 파일은 다음처럼 생겼다.
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Member Form</title>
+</head>
+<body>
+  <div class="container">
+    <form action="/members/new" method="post">
+      <div class="form-group">
+        <label for="name">이름</label>
+        <input type="text" id="name" name="name" placeholder="이름을 입력하세요">
+      </div>
+      <button type="submit">등록</button>
+    </form>
+  </div>
+</body>
+</html>
+```
+form 태그를 보면 action이 /members/new에 메소드가 post방식인 것을 볼 수 있고 input 태그에 name 속성의 값이 name인 것을 볼 수 있다.
+
+MemberController에 보이는 @PostMapping은 Post 방식의 맵핑으로 Get과 반대로 클라이언트에서 데이터를 받을 때 사용한다.<br>
+@PostMapping에 붙은 메소드는 MemberForm 객체를 받는데<br>
+MemberForm 클래스는
+```java
+package hello.hellospring.controller;
+
+public class MemberForm {
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+```
+프로젝트를 실행하고 /members/new 주소로 이동하면
+![](./images/08-01.png)
+createMemberForm.html 파일이 렌더링되는데 이름을 입력하고 등록버튼을 누르면<br>
+/members/new로 post 요청이 가게 되고<br>
+@PostMapping("/members/new")를 단 메소드에 인자인 MemberForm에 setName 메소드를 스프링이 호출해서 String name 필드에 name속성의 값이 name이었던 input 태그의 값을 넣게 된다.
+
+때문에 MemberController 클래스에서 @PostMapping을 단 create메소드를 보면<br>
+Member객체에 이름을 form에 name 필드의 값으로 설정하는 것을 볼 수 있다.
+
+실제로 출력해보면 잘 나옴
+
+이게 뭐 때문에 input에 name 속성 값을 가지고 MemberForm에 setter 메소드를 호출하는지 확인을 해보니 name값을 setter 메소드 명에 포함하고 있어야 감지한다는 것을 확인했다.<br>
+만약 input에 name값이 name1이라면 MemberForm에 setter 메소드명은 setName1 또는 setname1이 되야 한다는 것이다.
+
