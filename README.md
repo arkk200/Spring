@@ -842,3 +842,50 @@ Member객체에 이름을 form에 name 필드의 값으로 설정하는 것을 �
 이게 뭐 때문에 input에 name 속성 값을 가지고 MemberForm에 setter 메소드를 호출하는지 확인을 해보니 name값을 setter 메소드 명에 포함하고 있어야 감지한다는 것을 확인했다.<br>
 만약 input에 name값이 name1이라면 MemberForm에 setter 메소드명은 setName1 또는 setname1이 되야 한다는 것이다.
 
+## **8-2. 회원 조회**
+회원 조회는 Get 요청만 하면 되기에 MemberController 클래스에서
+```java
+@GetMapping("/members")
+public String list(Model model) {
+    List<Member> members = memberService.findMembers();
+    model.addAttribute("members", members);
+    return "members/memberList";
+}
+```
+@GetMapping만 추가해주면 된다.<br>
+조회할 때 모든 멤버 리스트를 조회하므로 memberService.findMembers()로 멤버 리스트를 받고 model에 members라는 키로 Member 리스트인 members를 값으로 할당해준다.
+
+members/memberList를 반환하므로 members/ 폴더에 memberList.html 파일을 살펴보면
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="https://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Member List</title>
+</head>
+<body>
+<div class="container">
+  <div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>이름</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr th:each="member : ${members}">
+        <td th:text="${member.id}"></td>
+        <td th:text="${member.name}"></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>
+```
+처럼 생겼다.<br>
+model에 키값을 할당했기에 thymeleaf 템플릿 엔진에서 th:each를 이용해서 값을 하나씩 불러오고<br>
+Member 객체에 getter메소드인 getId와 getName가 있었으므로 member.id와 member.name으로 정보를 표시한다.<br>
+(필드의 접근제어자가 있기 때문에 스프링이 필드가 아닌 getter메소드에 접근하는 것이다.)
