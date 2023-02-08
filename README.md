@@ -889,3 +889,69 @@ members/memberList를 반환하므로 members/ 폴더에 memberList.html 파일�
 model에 키값을 할당했기에 thymeleaf 템플릿 엔진에서 th:each를 이용해서 값을 하나씩 불러오고<br>
 Member 객체에 getter메소드인 getId와 getName가 있었으므로 member.id와 member.name으로 정보를 표시한다.<br>
 (필드의 접근제어자가 있기 때문에 스프링이 필드가 아닌 getter메소드에 접근하는 것이다.)
+
+# **9. 스프링 DB 접근 기술**
+스프링과 연결할 DB는 H2를 사용했다.<br>
+그리고 자바는 기본적으로 DB와 연결하려면 JDBC라는 API가 꼭 필요하기 때문에<br>
+build.gradle 파일에 dependencies에 관련 라이브러리를 추가했다.
+
+JDBC는 Java Database Connectivity로 자바에서 DB Connection을 가능하게 해주는 API이다.
+
+변경하면 우측 상단에
+
+![](./images/09-01.png)
+
+버튼이 뜨는데 gradle 로고 버튼을 누르면 설정한 라이브러리가 불러와진다.
+
+그리고 스프링에서 DB와 연결하려면 접속 정보를 넣어야 하는데<br>
+src/main/resources/ 폴더에 application.properties에 정보를 추가하면 된다.
+
+## **9-1. 순수 JDBC**
+
+MemoryMemberRepository 클래스를 대체해야하므로 해당 클래스가 있는 위치에 JDBC를 쓸 새로운 클래스를 만든다.<br>
+이 클래스 또한 마찬가지로 MemberRepository 인터페이스를 implements로 연결하고 메소드를 구현하면 된다.
+
+이떄 DB와 연결하기 위해서 DataSource 객체가 필요한데 DataSource는 DB Connection을 만들고, 관리하는 역할을 한다.
+
+DataSource 객체가 dataSource라면 dataSource.getConnection(); 으로 DataSource가 만든 DB Connection을 가지고 올 수 있는데,<br>
+이렇게 가져오는 것보다 DataSourceUtils.getConnection 메소드를 이용하면 DB Connection을 똑같은 Connection으로 유지시켜준다.<br>
+이래야 이전에 있던 DB 트랜젝션에 걸리지 않는다.
+
+아래처럼 사용할 수 있다.
+```java
+private Connection getConnection() {
+    return DataSourceUtils.getConnection(dataSource);
+}
+```
+
+DataSourceUtils.getConnection으로 가져온 Connetion 객체를 close할 땐<br>
+따로 DataSourceUtils.releaseConnection((Connection 객체), dataSource); 로 close 한다.
+
+기존에 MemoryMemberRepository를 DB와 통신하게 만든 클래스로 교체할 때는 스프링 빈 담당 클래스인 SpringConfig 클래스에서 memberRepository에 return 자리만 바꿔주면 된다.
+
+repository/ 폴더를 보면 JdbcMemberRepository가 DB와 통신하는 클래스인 걸 알 수 있고 아래처럼 memberRepository의 return문을 수정해주면 된다.
+```java
+// SpringConfig
+@Configuration
+public class SpringConfig {
+
+    private DataSource dataSource;
+
+    @Autowired
+    public SpringConfig(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    @Bean
+    public MemberRepository memberRepository() {
+//        return new MemoryMemberRepository();
+        return new JdbcMemberRepository(dataSource);
+    }
+}
+```
+JdbcMemberRepository 클래스를 보면 dataSource 객체를 필요로 하는데<br>
+@Autowired 어노테이션과 함께 DI 방식으로 dataSource필드에 객체를 주입하면 된다.
+
+스프링이 application.properties를 보고 SpringConfig 생성자의 인자에 DataSource 객체를 주입해야 한다는 것을 알게된다.
+
+위처럼 객체 지향의 다형성과 스프링의 DI를 잘 활용하면 기능을 완전히 변경해도 어플리케이션 동작 코드를 수정하지 않을 수 있다.
