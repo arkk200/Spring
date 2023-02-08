@@ -665,7 +665,7 @@ public class MemoryMemberRepository implements MemberRepository {
 @Controller, @Service, @Repository도 해당 파일에 들어가보면 @Component 어노테이션이 붙어있다.
 
 컴포넌트 스캔의 대상은 src/main/java/(만들어진 폴더)/ 바로 안래 애플리케이션 클래스가 있는 패키지 내부까지다.<br>
-때문에 main/java/ 폴더에 어떤 패키지와 클래스를 만들고 어노테이션으로 스프링 빈을 만들려고 해도 만들어지지 않는다.
+때문에 main/java/ 폴더에 어떤 패키지와 클래스를 만들고 컴포넌트 스캔으로 스프링 빈을 만들려고 해도 만들어지지 않는다.
 
 그리고 스프링은 기본으로 스프링 빈을 싱글톤으로 등록한다.<br>
 즉, 유일하게 하나의 인스턴스만 등록하고, 이 인스턴스 하나를 공유한다.<br>
@@ -955,3 +955,72 @@ JdbcMemberRepository 클래스를 보면 dataSource 객체를 필요로 하는�
 스프링이 application.properties를 보고 SpringConfig 생성자의 인자에 DataSource 객체를 주입해야 한다는 것을 알게된다.
 
 위처럼 객체 지향의 다형성과 스프링의 DI를 잘 활용하면 기능을 완전히 변경해도 어플리케이션 동작 코드를 수정하지 않을 수 있다.
+
+## **9-2. 스프링 통합 테스트**
+src/test/java/(만들어진 폴더)/service/ 폴더에 MemberServiceIntegrationTest 테스트 케이스에 통합 테스트가 구현돼있다.<br>
+
+코드는 이렇다.
+```java
+// MemberServiceIntegrationTest
+@SpringBootTest
+@Transactional
+class MemberServiceIntegrationTest {
+    @Autowired
+    MemberService memberService;
+    @Autowired
+    MemberRepository memberRepository;
+
+    @Test
+    void 회원가입() {
+        /* 만약 테스트 코드가 매우 길땐 아래 패턴으로 짜면 알기 쉽다. */
+
+        // given: 무언가가 주어졌고
+
+        Member member = new Member();
+        member.setName("spring");
+
+        // when: 이걸로 실행했는데
+        Long saveId = memberService.join(member);
+
+        // then: 결과가 이게 나와야 해
+        Member findMember = memberService.findOne(saveId).get();
+        assertThat(findMember.getName()).isEqualTo(member.getName());
+    }
+
+    @Test
+    public void 중복_회원_예외() {
+        // given
+        Member member1 = new Member();
+        member1.setName("spring");
+
+        Member member2 = new Member();
+        member2.setName("spring");
+
+        memberService.join(member1);
+
+        // when, then
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> memberService.join(member2));
+        assertThat(e.getMessage()).isEqualTo("이미 존재하는 회원입니다.");
+    }
+}
+```
+
+클래스 위에 @SpringBootTest라는 어노테이션이 있는데 @SpringBootTest는 통합 테스트를 하게 해주는 어노테이션으로<br>
+스프링 부트가 제공하는 스프링 컨테이너를 사용하여 테스트를 실행한다.
+
+때문에 @Autowired 어노테이션도 예외적으로 쓸 수 있고 Service나 Repository도 SpringConfig에서 가져와 사용할 수 있다.
+
+(자세한 내용은 [여기에](https://www.inflearn.com/questions/211302/springboottest에서-어떻게-autowired가-작동하는지-궁금합니다) 잘 나와있다.)
+
+@Transactional은 각 메서드를 실행할 때마다 **트랜젝션**을 만들고 **롤백**을 해주는 어노테이션이다.
+
+덕분에 DB에 데이터가 추가되거나 삭제되지 않고 원래 상태를 유지하기에 각 메서드들간의 충돌이 일어나지 않고, 테스트 케이스는 계속해서 테스트할 수 있어야한다는 조건도 만족한다.
+
+추가로 통합 테스트 케이스에서 @Autowired를 필드에 붙여서 필드 주입을 시켰는데,<br>
+어차피 테스트 케이스는 누가 접근을 하거나 하지 않기 때문에 상관 없기도 하고 오히려 편하다.
+
+사실 통합 테스트보다 MemberServiceTest같이 순수한 단위 테스트가 훨씬 좋은 테스트일 확률이 높다.
+
+단위 단위로 쪼게서 테스트를 잘 할 수 있게 하기 때문이고, 통합 테스트처럼 스프링 컨테이너를 올리면서까지 하는 테스트는 테스트 설계가 잘못됐을 확률이 높다. (근데 살다보면 필요할 때도 있다고 한다.)
+
+그렇기에 스프링 컨테이너 없이 테스트 할 수 있도록 훈련하는 연습이 필요하다.
