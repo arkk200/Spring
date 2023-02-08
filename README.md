@@ -1024,3 +1024,58 @@ class MemberServiceIntegrationTest {
 단위 단위로 쪼게서 테스트를 잘 할 수 있게 하기 때문이고, 통합 테스트처럼 스프링 컨테이너를 올리면서까지 하는 테스트는 테스트 설계가 잘못됐을 확률이 높다. (근데 살다보면 필요할 때도 있다고 한다.)
 
 그렇기에 스프링 컨테이너 없이 테스트 할 수 있도록 훈련하는 연습이 필요하다.
+
+## **9-3. 스프링 JdbcTemplate**
+
+순수 Jdbc와 동일하게 환경설정(build.gradle 설정)을 하면 된다.<br>
+JdbcTemplate은 실무에서도 많이 쓰인다.
+
+참고로 스프링 빈으로 등록된 클래스에 생성자가 하나고, DI 방식을 쓴다면 @Autowired 어노테이션을 생략할 수 있다.
+```java
+// JdbcTemplate 멤버 리포지토리
+public class JdbcTemplateMemberRepository implements MemberRepository {
+
+    private final JdbcTemplate jdbcTemplate;
+
+    // 생성자가 하나이므로 @Autowired 생략가능
+    public JdbcTemplateMemberRepository(DataSource dataSource) {
+        jdbcTemplate = new JdbcTemplate(dataSource);
+    }
+    ...
+}
+```
+
+순수 Jdbc 리포지토리를 살펴보면 각각의 메소드들이 상당히 복잡한데 JdbcTemplate을 사용하면 순수 Jdbc보다 간단하다는 걸 main/.../repository/ 폴더에서 살펴볼 수 있다.
+
+**\- save 메소드**
+
+save 메소드를 보면 SimpleJdbcInsert가 있는데 이 클래스는 sql insert를 쉽게 해주는 클래스다.<br>
+SimpleJdbcInsert의 인자로는 DataSource 객체나 JdbcTemplate 객체가 온다.
+
+SimpleJdbcInsert 클래스에 withTableName으로 테이블 명을 설정해주고<br>
+usingGeneratedKeyColumns로 특정 컬럼의 값을 키로 반환한다.
+
+MapSqlParameterSource로 Map을 체인으로 연결할 수 있게 해주는 클래스이다.<br>
+객체를 생성할 때 인자로 Map을 넣어줘도 되고,<br>
+객체를 생성한 뒤 addValues 메소드를 통해 Map을 연결시켜줄 수도 있다.
+
+executeAndReturnKey은 sql에 들어가는 parameter값을 SqlParameterSource 클래스의 객체(Map 객체)로써 받고 insert를 실행한 뒤,<br>
+usingGeneratedKeyColumns에 설정한 키를 반환받는다.
+
+**\- findById / findByName / findAll 메소드**
+
+이 메소드 내에 jdbcTemplate.query()는 sql 파라미터에 쿼리를 실행하고 두번째 인자에 RowMapper를 이용하여 쿼리 결과인 ResultSet을 객체로 변환하여 받는다.<br>
+객체는 리스트 형태이다.
+
+```java
+private RowMapper<Member> memberRowMapper() {
+    return (rs, rowNum) -> {
+        Member member = new Member();
+        member.setId(rs.getLong("id"));
+        member.setName(rs.getString("name"));
+        return member;
+    };
+}
+```
+
+RowMapper memberRowMapper() 메소드를 살펴보면 람다를 반환하는게 보이는데 rs는 ResultSet 객체, rowNum은 현재 행 번호를 나타낸다.
