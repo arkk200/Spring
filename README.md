@@ -1079,3 +1079,107 @@ private RowMapper<Member> memberRowMapper() {
 ```
 
 RowMapper memberRowMapper() 메소드를 살펴보면 람다를 반환하는게 보이는데 rs는 ResultSet 객체, rowNum은 현재 행 번호를 나타낸다.
+
+## **9-4. JPA**
+JPA를 쓰기위해선 build.gradle 파일에 dependencies에 "implementation 'org.springframework.boot:spring-boot-starter-data-jpa'"를 추가해야 한다.
+
+application.properties에는 "spring.jpa.show-sql=true"와 "spring.jpa.hibernate.ddl-auto=none"를 추가해주는데<br>
+각각 jpa가 날리는 sql문을 보는 옵션과 테이블 자동 생성 기능을 끄는 옵션이다.<br>
+jpa는 멤버 객체를 보고 자동으로 테이블도 만들어준다.
+
+jpa는 인터페이스이기 때문에 구현체가 필요한데 여기선 hibernate 구현체가 쓰였다.<br>
+구현체에는 hibernate, ecliplseLink 등 다양하다.
+
+jpa는 자바의 ORM(Object Relational Mapping)을 위한 기술 표준으로 이런 구현체들의 표준 인터페이스가 된다.
+
+먼저 domain 폴더에 도메인 객체 클래스인 Member를 jpa가 관리하게 하기위해서 @Entity 어노테이션을 달아줘야 한다.
+
+또한 이 클래스의 id는 primary key이면서 DB에서 자동으로 생성되는 값이므로<br>
+각각을 위해서 id 필드 위에 @Id와 @GeneratedValue(strategy = GenerationType.IDENTITY) 어노테이션을 달아줘야한다.<br>
+(DB에 값을 넣으면 **DB가 자동으로 ID를 생성해주는 것**을 아이덴티티 전략이라고 하는데 때문에 @GeneratedValue에 strategy에 해당 값을 넣어준 것이다.)
+```java
+// domain/Member
+@Entity
+public class Member {
+
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    ...
+}
+```
+만약 필드와 DB에 Column 명이 다르다면 @Column(name = (DB에 Column면)) 어노테이션을 달아주면 된다.
+```java
+// domain/Member
+@Entity
+public class Member {
+
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "username") // DB에 Column 명이 username이라면
+    private String name;
+    ...
+}
+```
+
+repository에 JpaMemberRepository 클래스를 보면 EntityManager 클래스의 객체를 DI하는 코드를 볼 수 있다.<br>
+JPA는 이 EntityManager를 통해서 모든게 동작을 한다.<br>
+build.gradle에 jpa 라이브러리를 받으면 Spring이 알아서 EntityManager를 주입해준다.
+
+EntityManager의 객체명을 em이라고 할 때 save() 메소드에 DB insert 구문은
+```java
+public Member save(Member member) {
+    em.persist(member);
+    return member;
+}
+```
+위처럼 적으면 된다.
+
+persist는 sql에 insert를 실행하는 메소드로 Member 클래스에 @Entity, @Id, @GenerateValue 어노테이션으로 다 설정해줬으니 해당 메소드에 인자로 전달하기만 하면 내부적으로 다 처리해준다.
+
+findById() 메소드는 id라는 PK로 멤버를 찾고 있는 것이므로 em.find() 메소드를 이용하면 된다.
+```java
+public Optional<Member> findById(Long id) {
+    Member member = em.find(Member.class, id);
+    return Optional.ofNullable(member);
+}
+```
+find()에 첫번째는 Member.class로 Member 클래스에 대한 정보를 넘겨주고, 두번째로는 찾고자 하는 멤버의 PK 값이 들어간다.
+
+findAll() 메소드는 JPQL 엔티티 객체를 대상으로 조회하는 객체지향 쿼리를 써야한다.
+```java
+public List<Member> findAll() {
+    return em.createQuery("select m from Member m", Member.class)
+            .getResultList();
+}
+```
+createQuery() 메소드를 사용하는데 첫번째 인자로 JPQL, 두번째 인자로 Member 클래스에 대한 정보가 들어간다.<br>
+첫번째 인자에 JPQL은 Member 클래스에 대한 모든 Member 객체를 가져오라는 의미이다.<br>
+이때 반환값은 여러개이므로 .getResultList() 메소드로 Member 객체들을 리스트로 받는다.
+
+JPQL을 사용할 때는 모든 멤버를 조회하는 것 외에도, PK가 아닌 속성으로 값을 찾을 때도 사용한다.
+```java
+public Optional<Member> findByName(String name) {
+    List<Member> result = em.createQuery("select m from Member m where m.name = :name", Member.class)
+            .setParameter("name", name)
+            .getResultList();
+    return result.stream().findAny();
+}
+```
+JPQL내에 ":이름" 형태로 작성하면 .setParameter() 메소드로 값을 삽입할 수 있다.
+
+스프링 JPA를 사용하면 이런 것들도 JPQL로 안 짤 수 있다.
+
+데이터를 저장하고 변경할 땐 항상 @Transactional 어노테이션이 필요하다.<br>
+JPA의 모든 데이터 변경은 트렌젝션 안에서 실행되야 하기 때문이다.
+```java
+// service/MemberService
+@Transactional
+public class MemberService {
+    ...
+}
+```
+(회원가입 할 때만 데이터가 저장되므로 회원가입 메소드 위에 달아줘도 된다.)
+
+마지막으로 SpringConfig에서 JPA 리포지토리로 대체하고 EntityManager를 주입해준다.<br>
+@PersistenceContext로 주입받을 수도 있다.
