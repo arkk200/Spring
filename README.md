@@ -1183,3 +1183,51 @@ public class MemberService {
 
 마지막으로 SpringConfig에서 JPA 리포지토리로 대체하고 EntityManager를 주입해준다.<br>
 @PersistenceContext로 주입받을 수도 있다.
+
+## **9-5 스프링 데이터 JPA**
+스프링 데이터 JPA를 학습하기 전에 JPA를 먼저 학습하는게 좋다.
+
+스프링 데이터 JPA를 사용하면 SpringConfig에서 Bean으로 등록하지 않아도 되고, 인터페이스만으로 거의 다 짤 수 있다.
+
+리포지토리에 인터페이스를 하나 만들고 다음처럼 짠다.
+```java
+// repository/SpringDataJpaMemberRepository
+public interface SpringDataJpaMemberRepository extends JpaRepository<Member, Long>, MemberRepository {
+    @Override
+    Optional<Member> findByName(String name);
+}
+```
+
+JpaRepository에 첫번째 제네릭은 엔티티, 두번째는 PK 타입을 넣으면 된다.
+
+JpaRepository는 data jpa 라이브러리에서 제공해주는 인터페이스다.<br>
+이 안에 save(), findAll(), findById() 메소드가 구현돼 있어서 따로 작성할 필요가 없다.
+
+findByName 같은 경우엔 당연히 마음대로 지은 필드명을 따서 만든 메소드이기에 저렇게 구현해줘야 한다.<br>
+저렇게만 해줘도 메소드명이 findBy로 시작하므로 내부적으로 findBy 관련 JPQL을 짜준다.
+
+그리고 JpaRepository를 받고 있는 인터페이스가 있으면 스프링 데이터 JPA가 자동으로 구현체를 만들어주고 스프링 빈으로 등록도 해준다.<br>
+따라서 SpringConfig를 아래처럼 수정해줘야 한다.
+```java
+@Configuration
+public class SpringConfig {
+
+    private final MemberRepository memberRepository;
+
+    public SpringConfig(MemberRepository memberRepository) {
+        this.memberRepository = memberRepository;
+    }
+
+    @Bean
+    public MemberService memberService() {
+        return new MemberService(memberRepository);
+    }
+}
+```
+
+스프링 데이터 JPA 덕분에 MemberRepository을 SpringConfig에서 스프링 빈으로 등록할 필요도 없고<br>
+스프링 데이터 JPA가 내부적으로 MemberRepository를 상속받은 SpringDataJpaMemberRepository를<br>
+스프링 빈으로 등록해줬기에 MemberService의 MemberRepository 인자값은 저렇게 DI를 통해서 받을 수 있다.
+
+실무에서는 JPA, 스프링 데이터 JPA를 기본으로 하고 복잡한 동적 쿼리는 Querydsl이라는 라이브러리를 사용한다.<br>
+이 조합으로 해결하기 어려운 쿼리는 JPA가 제공하는 네이티브 쿼리를 쓰거나, JdbcTemplate을 섞어서 사용하면 된다.
