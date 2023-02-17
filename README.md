@@ -1231,3 +1231,60 @@ public class SpringConfig {
 
 실무에서는 JPA, 스프링 데이터 JPA를 기본으로 하고 복잡한 동적 쿼리는 Querydsl이라는 라이브러리를 사용한다.<br>
 이 조합으로 해결하기 어려운 쿼리는 JPA가 제공하는 네이티브 쿼리를 쓰거나, JdbcTemplate을 섞어서 사용하면 된다.
+
+# **10. AOP**
+- **AOP가 필요한 상황**
+    - 모든 메소드의 호출 시간을 측정하고 싶을 때
+
+    메소드 시작부분과 끝부분에 System.currentTimeMillis()를 두고 그 차이로 측정할 수 있다.<br>
+    근데 문제는 메소드가 여러개일 경우, 반복 노가다로 복붙해야하는 노동을 해야한다.<br>
+    코드가 섞여서 더럽게 보이기도 해서 유지보수 하기도 어렵다.<br>
+
+- **AOP 적용**
+    AOP는 Aspect Oriented Programming의 약자고 관점 지향 프로그래밍으로 번역하기도 한다.<br>
+    AOP는 공통 관심사와 핵심 관심사를 분리하는 것이다.
+    ![](./images/10-01.png)
+
+    aop/ 폴더에 TimeTraceAop 클래스가 보이는데 코드는 아래와 같다.
+    ```java
+    @Aspect
+    public class TimeTraceAop {
+
+        public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
+            long start = System.currentTimeMillis();
+            System.out.println("START: " + joinPoint.toString());
+            try {
+                return joinPoint.proceed();
+            } finally {
+                long finish = System.currentTimeMillis();
+                long timeMs = finish - start;
+                System.out.println("END: " + joinPoint.toString() + " " + timeMs + "ms");
+            }
+        }
+    }
+    ```
+    @Aspect는 공통관심사로 묶을 로직을 모듈처럼 만들 때 사용한다.
+
+    이때 이 모듈을 스프링 빈으로 등록시켜줘야 하는데<br>
+    @Component로 컴포넌트 스캔 방식을 써도 되지만 SpringConfig에 직접 스프링 빈으로 등록시켜서 특별하다고 인지할 수 있게 하는게 좋다.<br>
+    (근데 에러 나서 그냥 @Component 썼다.)
+
+    마지막으로 execute 위에 @Around 어노테이션을 놓아서 어디에 적용시킬지를 정해줘야한다.
+    ```java
+    ...
+    @Around("execution(* hello.hellospring..*(..))")
+    public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
+        ...
+    }
+    ...
+    ```
+    @Around 어노테이션 내에 execution에 내용은 hello.hellospring 패키지 내에  모든 클래스에 메소드의 파라미터 개수와 상관없이 실행하겠다는 의미이다.<br>
+    전체 코드는 aop/ 폴더를 보면 된다.
+
+    덕분에 시간을 측정하는 공통 관심 사항을 핵심 관심 사항과 분리해서 핵심 관심 사항을 깔끔하게 유지시킬 수 있었고, 변경이 필요하면 이 로직만 바꿔도 되게 되었다.
+
+원리는 스프링이 어떤 클래스가 AOP를 적용해야 한다면 프록시라는 객체를 생성하고 그 안에서 joinPoint.proceed()가 호출되면 진짜 객체가 불러와지는 원리다.
+
+그래서 MemberController에서 memberService 클래스를 출력해보면 그냥 MemberService가 안나오고 $$\~\~CGLIB\~\~가 붙어서 나온다.
+<br>
+CGLIB는 Code Generator Library의 약자로, 클래스 바이트 코드를 조작해 프록시 객체를 생성해주는 라이브러리이다.
